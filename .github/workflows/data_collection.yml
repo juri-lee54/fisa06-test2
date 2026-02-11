@@ -1,16 +1,12 @@
 name: Data Collection CronJob
 
 on:
-  # 1. 5분마다 실행 (Cron)
   schedule:
     - cron: '*/5 * * * *'
-  # 2. 레포지토리에 이벤트(Push)가 발생할 때마다 실행
   push:
     branches: [ "main", "master" ]
-  # 수동 실행 옵션 (테스트용)
   workflow_dispatch:
 
-# Git Push 권한 설정
 permissions:
   contents: write
 
@@ -19,17 +15,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. 현재 레포지토리 코드 및 데이터 체크아웃
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # 2. Python 환경 설정
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.x'
 
-    # 3. 데이터 수집 및 파일 저장 스크립트 실행
     - name: Fetch API and Update JSON
       run: |
         import json
@@ -37,25 +30,30 @@ jobs:
         import urllib.request
         from datetime import datetime
 
-        # --- 1. URL 계산 로직 ---
-        # 현재 시간(UTC 기준, 분은 전세계 동일) 가져오기
+        # --- 1. 시간 및 URL 계산 ---
         now = datetime.now()
         current_minute = now.minute
         
-        # 요구사항: 현재분 + 1 (예: 30분 -> 31, 00분 -> 1)
+        # 현재 분 + 1 계산
         todo_id = current_minute + 1
         url = f"https://jsonplaceholder.typicode.com/todos/{todo_id}"
         
         print(f"Target Time: {now.strftime('%H:%M')}, Target ID: {todo_id}")
-        print(f"Request URL: {url}")
 
         # --- 2. API 호출 ---
         try:
             with urllib.request.urlopen(url) as response:
                 if response.status == 200:
                     data = json.loads(response.read().decode())
-                    # 데이터 수집 시각 추가 (로깅용)
-                    data['collected_at'] = now.isoformat()
+                    
+                    # [여기서 타이틀을 내 맘대로 변경합니다]
+                    # 예: "jurilee 수집데이터_시간 (원래ID)"
+                    custom_title = f"jurilee 데이터_{now.strftime('%Y-%m-%d %H:%M')} (Source ID: {todo_id})"
+                    
+                    data['title'] = custom_title  # <--- 기존 title 덮어쓰기
+                    data['collected_at'] = now.isoformat() # 수집 시간 기록
+                    
+                    print(f"Title changed to: {custom_title}")
                 else:
                     print("Failed to fetch data")
                     exit(1)
@@ -63,12 +61,10 @@ jobs:
             print(f"Error fetching data: {e}")
             exit(1)
 
-        # --- 3. Incremental Update (파일 누적 저장) ---
+        # --- 3. 파일 저장 (Incremental) ---
         file_path = 'jurilee_test.json'
-        
         existing_data = []
 
-        # 파일이 존재하면 읽어오기 (처음 실행 시에는 이 부분이 건너뛰어지고 빈 리스트로 시작됨)
         if os.path.exists(file_path):
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -76,33 +72,25 @@ jobs:
             except json.JSONDecodeError:
                 pass 
 
-        # 리스트에 새 데이터 추가
         existing_data.append(data)
 
-        # 파일 다시 쓰기 (새로 생성하거나 덮어쓰기)
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(existing_data, f, indent=4, ensure_ascii=False)
         
         print(f"Successfully updated {file_path}")
       shell: python
 
-    # 4. 변경 사항을 레포지토리에 Commit & Push (데이터 영구 저장)
     - name: Commit and Push changes
       run: |
         git config --global user.name "jurilee-bot"
         git config --global user.email "jurilee@users.noreply.github.com"
         
-        # 파일 스테이징
         git add jurilee_test.json
         
-        # 변경사항이 있는지 확인
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
           git commit -m "Update jurilee_test.json data [skip ci]"
-          
-          # [중요] 원격 저장소의 최신 변경사항을 가져와서 합침 (에러 방지)
           git pull --rebase origin main
-          
           git push
         fi
