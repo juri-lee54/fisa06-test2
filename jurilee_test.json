@@ -2182,5 +2182,12 @@
         "title": "jurilee 데이터_2026-02-20 20:00 (Source ID: 1)",
         "completed": false,
         "collected_at": "2026-02-20T20:00:30.679758"
+    },
+    {
+        "userId": 2,
+        "id": 40,
+        "title": "jurilee 데이터_2026-02-20 20:39 (Source ID: 40)",
+        "completed": true,
+        "collected_at": "2026-02-20T20:39:08.956720"
     }
 ]
